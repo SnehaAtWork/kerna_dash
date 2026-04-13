@@ -3,6 +3,9 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from app.modules.clients.models import Client, Project
+from app.modules.clients.repositories import ClientRepository, ProjectRepository
+from app.modules.leads.models import Lead
 from app.modules.quotations.models import Quotation, QuotationLineItem, QuotationVersion
 from app.modules.quotations.repositories import QuotationRepository
 from app.shared.exceptions import NotFoundError, ValidationError
@@ -12,6 +15,8 @@ class QuotationService:
 
     def __init__(self):
         self.repository = QuotationRepository()
+        self.client_repository = ClientRepository()
+        self.project_repository = ProjectRepository()
 
     def create_quotation(self, db: Session, lead_id: uuid.UUID, data: dict) -> Quotation:
         if not lead_id:
@@ -61,10 +66,46 @@ class QuotationService:
         self.repository.unset_final_versions(db, version.quotation_id)
         return self.repository.set_version_final(db, version)
 
-    def accept_quotation(self, db: Session, quotation_id: uuid.UUID) -> Quotation:
+    def accept_quotation(self, db: Session, quotation_id: uuid.UUID) -> dict:
+        # TODO: wrap in single transaction (client + project + quotation update)
         quotation = self.get_quotation(db, quotation_id)
+
+        # idempotency: already accepted
+        if quotation.status == "ACCEPTED":
+            lead: Lead = quotation.lead
+            existing_client = self.client_repository.get_by_company_name(
+                db, lead.company_name.strip().lower()
+            ) if lead else None
+            existing_project = (
+                self.project_repository.get_latest_by_client_id(db, existing_client.id)
+                if existing_client else None
+            )
+            return {"quotation": quotation, "project": existing_project}
+
         final = self.repository.get_final_version(db, quotation_id)
         if not final:
             raise ValidationError("Quotation must have a final version before accepting")
-        # TODO: trigger project creation here
-        return self.repository.update_quotation_status(db, quotation, "ACCEPTED")
+
+        lead: Lead = quotation.lead
+        if not lead:
+            raise NotFoundError("Lead", quotation.lead_id)
+
+        # normalize for lookup only — store original in db
+        normalized_name = lead.company_name.strip().lower()
+        client = self.client_repository.get_by_company_name(db, normalized_name)
+        if not client:
+            client = self.client_repository.create(db, {
+                "company_name": lead.company_name,
+                "primary_contact_name": lead.contact_name,
+                "primary_email": lead.email,
+                "primary_phone": lead.phone,
+            })
+
+        project = self.project_repository.create(db, {
+            "client_id": client.id,
+            "status": "INITIATED",
+        })
+
+        updated_quotation = self.repository.update_quotation_status(db, quotation, "ACCEPTED")
+
+        return {"quotation": updated_quotation, "project": project}
