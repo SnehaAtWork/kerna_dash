@@ -1,32 +1,25 @@
 # app/modules/leads/routes.py
 
+from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db
 from app.modules.leads.services import LeadService
-from app.shared.exceptions import NotFoundError, ValidationError
-
-from typing import Optional
+from app.modules.leads.schemas import LeadCreate, LeadUpdate, LeadAssign
 
 router = APIRouter(prefix="/leads", tags=["Leads"])
 
 
 @router.post("/")
-def create_lead(data: dict, db: Session = Depends(get_db)):
-    try:
-        return LeadService().create_lead(db, data)
-    except ValidationError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+def create_lead(data: LeadCreate, db: Session = Depends(get_db)):
+    return LeadService().create_lead(db, data.dict())
 
 
 @router.get("/{lead_id}")
 def get_lead(lead_id: UUID, db: Session = Depends(get_db)):
-    try:
-        return LeadService().get_lead(db, lead_id)
-    except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    return LeadService().get_lead(db, lead_id)
 
 
 @router.get("/")
@@ -47,25 +40,10 @@ def list_leads(
 
 
 @router.patch("/{lead_id}")
-def update_lead(lead_id: UUID, data: dict, db: Session = Depends(get_db)):
-    try:
-        return LeadService().update_lead(db, lead_id, data)
-    except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ValidationError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+def update_lead(lead_id: UUID, data: LeadUpdate, db: Session = Depends(get_db)):
+    return LeadService().update_lead(db, lead_id, data.dict(exclude_unset=True))
 
 
 @router.post("/{lead_id}/assign")
-def assign_lead(lead_id: UUID, data: dict, db: Session = Depends(get_db)):
-    try:
-        raw = data.get("user_id")
-        user_id = UUID(str(raw))
-    except (ValueError, AttributeError):
-        raise HTTPException(status_code=422, detail="Invalid user_id")
-    try:
-        return LeadService().assign_lead(db, lead_id, user_id)
-    except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ValidationError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+def assign_lead(lead_id: UUID, data: LeadAssign, db: Session = Depends(get_db)):
+    return LeadService().assign_lead(db, lead_id, data.user_id)
