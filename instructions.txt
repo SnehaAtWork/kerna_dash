@@ -1,0 +1,2 @@
+conda activate kerna_dash
+uvicorn app.main:app --reload

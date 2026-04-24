@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from app.modules.project_modules.models import ModuleAssignment, ProjectModule
 from app.modules.project_modules.repositories import ProjectModuleRepository
 from app.shared.exceptions import NotFoundError, ValidationError
-
 from app.shared.enums import MODULE_STATUSES
+from app.core.permissions import has_permission
 
 
 class ProjectModuleService:
@@ -20,10 +20,11 @@ class ProjectModuleService:
             raise NotFoundError("ProjectModule", module_id)
         return module
 
-    def create_module(self, db: Session, project_id: uuid.UUID, data: dict) -> ProjectModule:
+    def create_module(self, db: Session, project_id: uuid.UUID, data: dict, current_user) -> ProjectModule:
+        if not has_permission(current_user, "create_module"):
+            raise ValidationError("Not allowed to create module")
         if not project_id:
             raise ValidationError("project_id is required")
-        # TODO: validate project existence via ProjectRepository
         if not data.get("module_type"):
             raise ValidationError("module_type is required")
         payload = {**data, "project_id": project_id, "status": MODULE_STATUSES[0]}
@@ -32,7 +33,9 @@ class ProjectModuleService:
     def list_modules(self, db: Session, project_id: uuid.UUID) -> list[ProjectModule]:
         return self.repository.list_by_project(db, project_id)
 
-    def update_module_status(self, db: Session, module_id: uuid.UUID, status: str) -> ProjectModule:
+    def update_module_status(self, db: Session, module_id: uuid.UUID, status: str, current_user) -> ProjectModule:
+        if not has_permission(current_user, "update_module"):
+            raise ValidationError("Not allowed to update module status")
         if not status:
             raise ValidationError("status is required")
         if status not in MODULE_STATUSES:
@@ -40,7 +43,9 @@ class ProjectModuleService:
         module = self._get_module_or_raise(db, module_id)
         return self.repository.update_module(db, module, {"status": status})
 
-    def assign_user(self, db: Session, module_id: uuid.UUID, user_id: uuid.UUID) -> ModuleAssignment:
+    def assign_user(self, db: Session, module_id: uuid.UUID, user_id: uuid.UUID, current_user) -> ModuleAssignment:
+        if not has_permission(current_user, "assign_module"):
+            raise ValidationError("Not allowed to assign module")
         if not user_id:
             raise ValidationError("user_id is required")
         self._get_module_or_raise(db, module_id)
@@ -49,7 +54,9 @@ class ProjectModuleService:
             raise ValidationError("User already assigned to this module")
         return self.repository.assign_user(db, module_id, user_id)
 
-    def unassign_user(self, db: Session, module_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    def unassign_user(self, db: Session, module_id: uuid.UUID, user_id: uuid.UUID, current_user) -> None:
+        if not has_permission(current_user, "assign_module"):
+            raise ValidationError("Not allowed to unassign module")
         self._get_module_or_raise(db, module_id)
         assignment = self.repository.get_assignment(db, module_id, user_id)
         if not assignment:

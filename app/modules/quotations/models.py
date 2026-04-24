@@ -18,7 +18,7 @@ class Quotation(Base, TimestampMixin):
     poc_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="DRAFT")
     template_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # relationships
     lead: Mapped["Lead"] = relationship("Lead", back_populates="quotations")

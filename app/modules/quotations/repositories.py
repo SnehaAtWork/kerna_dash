@@ -1,3 +1,5 @@
+# app/modules/quotations/repositories.py
+
 import uuid
 
 from sqlalchemy import select, update
@@ -11,6 +13,7 @@ class QuotationRepository:
     def create_quotation(self, db: Session, data: dict) -> Quotation:
         quotation = Quotation(**data)
         db.add(quotation)
+        db.flush()
         db.commit()
         db.refresh(quotation)
         return quotation
@@ -21,6 +24,7 @@ class QuotationRepository:
     def create_version(self, db: Session, data: dict) -> QuotationVersion:
         version = QuotationVersion(**data)
         db.add(version)
+        db.flush()
         db.commit()
         db.refresh(version)
         return version
@@ -62,8 +66,9 @@ class QuotationRepository:
             for item in items
         ]
         db.add_all(line_items)
-        db.commit()
+        db.flush()
         for item in line_items:
+            db.commit()
             db.refresh(item)
         return line_items
 
@@ -74,16 +79,17 @@ class QuotationRepository:
             .values(is_final=False)
         )
         db.execute(stmt)
-        # no commit — set_version_final commits
 
     def set_version_final(self, db: Session, version: QuotationVersion) -> QuotationVersion:
         version.is_final = True
+        db.flush()
         db.commit()
         db.refresh(version)
         return version
 
     def update_quotation_status(self, db: Session, quotation: Quotation, status: str) -> Quotation:
         quotation.status = status
+        db.flush()
         db.commit()
         db.refresh(quotation)
         return quotation

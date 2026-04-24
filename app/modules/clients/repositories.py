@@ -1,3 +1,5 @@
+# app/modules/clients/repositories.py
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -20,7 +22,7 @@ class ClientRepository:
     def create(self, db: Session, data: dict) -> Client:
         client = Client(**data)
         db.add(client)
-        db.commit()
+        db.flush()
         db.refresh(client)
         return client
 
@@ -30,7 +32,7 @@ class ProjectRepository:
     def create(self, db: Session, data: dict) -> Project:
         project = Project(**data)
         db.add(project)
-        db.commit()
+        db.flush()
         db.refresh(project)
         return project
 

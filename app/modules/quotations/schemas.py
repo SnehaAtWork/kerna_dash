@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 class QuotationCreate(BaseModel):
     lead_id: UUID
-    data: Optional[dict] = None
+    status: Optional[str] = "DRAFT"
 
 
 class QuotationResponse(BaseModel):
@@ -19,7 +19,7 @@ class QuotationResponse(BaseModel):
 
 
 class VersionCreate(BaseModel):
-    data: Optional[dict] = None
+    total: Optional[float] = 0.0
 
 
 class VersionResponse(BaseModel):

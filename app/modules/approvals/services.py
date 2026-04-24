@@ -1,3 +1,5 @@
+# app/modules/approvals/services.py
+
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -46,11 +48,12 @@ class ApprovalService:
         if approval.status != "PENDING":
             raise ValidationError(f"Cannot approve: approval is {approval.status}")
         self._check_lock_not_expired(approval)
-        return self.repository.update_approval(db, approval, {
-            "status": "APPROVED",
-            "approved_by": user_id,
-            "approved_at": datetime.now(timezone.utc),
-        })
+        with db.begin():
+            return self.repository.update_approval(db, approval, {
+                "status": "APPROVED",
+                "approved_by": user_id,
+                "approved_at": datetime.now(timezone.utc),
+            })
 
     def reject(self, db: Session, approval_id: uuid.UUID, user_id: uuid.UUID) -> Approval:
         if not user_id:
@@ -59,11 +62,12 @@ class ApprovalService:
         if approval.status != "PENDING":
             raise ValidationError(f"Cannot reject: approval is {approval.status}")
         self._check_lock_not_expired(approval)
-        return self.repository.update_approval(db, approval, {
-            "status": "REJECTED",
-            "approved_by": user_id,
-            "approved_at": datetime.now(timezone.utc),
-        })
+        with db.begin():
+            return self.repository.update_approval(db, approval, {
+                "status": "REJECTED",
+                "rejected_by": user_id,          # fixed: was approved_by
+                "rejected_at": datetime.now(timezone.utc),  # fixed: was approved_at
+            })
 
     def withdraw(self, db: Session, approval_id: uuid.UUID, user_id: uuid.UUID) -> Approval:
         if not user_id:

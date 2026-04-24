@@ -1,3 +1,5 @@
+# app/modules/quotations/services.py
+
 import uuid
 from decimal import Decimal
 
@@ -64,10 +66,11 @@ class QuotationService:
         if not version:
             raise NotFoundError("QuotationVersion", version_id)
         self.repository.unset_final_versions(db, version.quotation_id)
-        return self.repository.set_version_final(db, version)
+        result = self.repository.set_version_final(db, version)
+        db.commit()
+        return result
 
-    def accept_quotation(self, db: Session, quotation_id: uuid.UUID) -> dict:
-        # TODO: wrap in single transaction (client + project + quotation update)
+    def accept_quotation(self, db: Session, quotation_id: uuid.UUID, current_user) -> dict:
         quotation = self.get_quotation(db, quotation_id)
 
         # idempotency: already accepted
@@ -90,7 +93,7 @@ class QuotationService:
         if not lead:
             raise NotFoundError("Lead", quotation.lead_id)
 
-        # normalize for lookup only — store original in db
+        # all writes atomic
         normalized_name = lead.company_name.strip().lower()
         client = self.client_repository.get_by_company_name(db, normalized_name)
         if not client:
@@ -100,6 +103,7 @@ class QuotationService:
                 "primary_email": lead.email,
                 "primary_phone": lead.phone,
             })
+            # flush already called inside repo.create — client.id available
 
         project = self.project_repository.create(db, {
             "client_id": client.id,

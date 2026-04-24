@@ -13,7 +13,7 @@ class ApprovalRepository:
     def create_approval(self, db: Session, data: dict) -> Approval:
         approval = Approval(**data)
         db.add(approval)
-        db.commit()
+        db.flush()
         db.refresh(approval)
         return approval
 
@@ -30,6 +30,6 @@ class ApprovalRepository:
     def update_approval(self, db: Session, approval: Approval, data: dict) -> Approval:
         for key, value in data.items():
             setattr(approval, key, value)
-        db.commit()
+        db.flush()
         db.refresh(approval)
         return approval
