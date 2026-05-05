@@ -27,7 +27,7 @@ class ApprovalService:
         if approval.lock_expires_at and datetime.now(timezone.utc) > approval.lock_expires_at:
             raise ValidationError("Approval window has expired")
 
-    def request_approval(self, db: Session, module_version_id: uuid.UUID) -> Approval:
+    def request_approval(self, db: Session, module_version_id: uuid.UUID, current_user=None) -> Approval:
         version = self.repository.get_module_version(db, module_version_id)
         if not version:
             raise NotFoundError("ModuleVersion", module_version_id)
@@ -35,39 +35,46 @@ class ApprovalService:
         if any(a.status == "PENDING" for a in existing):
             raise ValidationError("Pending approval already exists for this version")
         lock_expires_at = datetime.now(timezone.utc) + timedelta(hours=APPROVAL_LOCK_HOURS)
-        return self.repository.create_approval(db, {
+        result = self.repository.create_approval(db, {
             "module_version_id": module_version_id,
             "status": "PENDING",
             "lock_expires_at": lock_expires_at,
         })
+        db.commit()
+        db.refresh(result)
+        return result
 
-    def approve(self, db: Session, approval_id: uuid.UUID, user_id: uuid.UUID) -> Approval:
+    def approve(self, db: Session, approval_id: uuid.UUID, user_id: uuid.UUID, current_user=None) -> Approval:
         if not user_id:
             raise ValidationError("user_id is required")
         approval = self._get_approval_or_raise(db, approval_id)
         if approval.status != "PENDING":
             raise ValidationError(f"Cannot approve: approval is {approval.status}")
         self._check_lock_not_expired(approval)
-        with db.begin():
-            return self.repository.update_approval(db, approval, {
-                "status": "APPROVED",
-                "approved_by": user_id,
-                "approved_at": datetime.now(timezone.utc),
-            })
+        result = self.repository.update_approval(db, approval, {
+            "status": "APPROVED",
+            "approved_by": user_id,
+            "approved_at": datetime.now(timezone.utc),
+        })
+        db.commit()
+        db.refresh(result)
+        return result
 
-    def reject(self, db: Session, approval_id: uuid.UUID, user_id: uuid.UUID) -> Approval:
+    def reject(self, db: Session, approval_id: uuid.UUID, user_id: uuid.UUID, current_user=None) -> Approval:
         if not user_id:
             raise ValidationError("user_id is required")
         approval = self._get_approval_or_raise(db, approval_id)
         if approval.status != "PENDING":
             raise ValidationError(f"Cannot reject: approval is {approval.status}")
         self._check_lock_not_expired(approval)
-        with db.begin():
-            return self.repository.update_approval(db, approval, {
-                "status": "REJECTED",
-                "rejected_by": user_id,          # fixed: was approved_by
-                "rejected_at": datetime.now(timezone.utc),  # fixed: was approved_at
-            })
+        result = self.repository.update_approval(db, approval, {
+            "status": "REJECTED",
+            "rejected_by": user_id,
+            "rejected_at": datetime.now(timezone.utc),
+        })
+        db.commit()
+        db.refresh(result)
+        return result
 
     def withdraw(self, db: Session, approval_id: uuid.UUID, user_id: uuid.UUID) -> Approval:
         if not user_id:
@@ -76,7 +83,11 @@ class ApprovalService:
         if approval.status != "PENDING":
             raise ValidationError(f"Cannot withdraw: approval is {approval.status}")
         # lock window NOT checked on withdraw — user must always be able to withdraw while PENDING
-        return self.repository.update_approval(db, approval, {
+        result = self.repository.update_approval(db, approval, {
+            "status": "WITHDRAWN",
             "withdrawn_at": datetime.now(timezone.utc),
             "withdrawn_by": user_id,
         })
+        db.commit()
+        db.refresh(result)
+        return result

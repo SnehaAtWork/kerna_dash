@@ -41,3 +41,11 @@ class LeadRepository:
         db.commit()
         db.refresh(lead)
         return lead
+
+    def transition(self, db: Session, lead: Lead, status: str, notes: str | None) -> Lead:
+        lead.status = status
+        if notes is not None:
+            lead.notes = notes
+        db.commit()
+        db.refresh(lead)
+        return lead

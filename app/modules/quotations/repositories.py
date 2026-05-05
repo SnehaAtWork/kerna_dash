@@ -21,6 +21,12 @@ class QuotationRepository:
     def get_quotation(self, db: Session, quotation_id: uuid.UUID) -> Quotation | None:
         return db.get(Quotation, quotation_id)
 
+    def list_all(self, db: Session, lead_id: uuid.UUID | None = None) -> list[Quotation]:
+        stmt = select(Quotation)
+        if lead_id:
+            stmt = stmt.where(Quotation.lead_id == lead_id)
+        return db.execute(stmt).scalars().all()
+
     def create_version(self, db: Session, data: dict) -> QuotationVersion:
         version = QuotationVersion(**data)
         db.add(version)
@@ -60,6 +66,10 @@ class QuotationRepository:
     def get_version(self, db: Session, version_id: uuid.UUID) -> QuotationVersion | None:
         return db.get(QuotationVersion, version_id)
 
+    def get_line_items_for_version(self, db: Session, version_id: uuid.UUID) -> list[QuotationLineItem]:
+        stmt = select(QuotationLineItem).where(QuotationLineItem.quotation_version_id == version_id)
+        return db.execute(stmt).scalars().all()
+
     def create_line_items(self, db: Session, version_id: uuid.UUID, items: list[dict]) -> list[QuotationLineItem]:
         line_items = [
             QuotationLineItem(quotation_version_id=version_id, **item)
@@ -68,8 +78,8 @@ class QuotationRepository:
         db.add_all(line_items)
         db.flush()
         for item in line_items:
-            db.commit()
             db.refresh(item)
+        db.commit()
         return line_items
 
     def unset_final_versions(self, db: Session, quotation_id: uuid.UUID) -> None:
@@ -89,6 +99,13 @@ class QuotationRepository:
 
     def update_quotation_status(self, db: Session, quotation: Quotation, status: str) -> Quotation:
         quotation.status = status
+        db.flush()
+        db.commit()
+        db.refresh(quotation)
+        return quotation
+
+    def update_quotation_notes(self, db: Session, quotation: Quotation, notes: str) -> Quotation:
+        quotation.notes = notes
         db.flush()
         db.commit()
         db.refresh(quotation)

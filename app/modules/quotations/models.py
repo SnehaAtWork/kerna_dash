@@ -17,8 +17,9 @@ class Quotation(Base, TimestampMixin):
     lead_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("leads.id", ondelete="RESTRICT"), nullable=False, index=True)
     poc_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="DRAFT")
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     template_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    #valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # relationships
     lead: Mapped["Lead"] = relationship("Lead", back_populates="quotations")
@@ -33,9 +34,9 @@ class QuotationVersion(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     quotation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("quotations.id", ondelete="RESTRICT"), nullable=False, index=True)
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    subtotal: Mapped[Numeric] = mapped_column(Numeric(10, 2), nullable=False)
+    subtotal: Mapped[Numeric] = mapped_column(Numeric(10, 2), nullable=False, default=0)
     discount: Mapped[Numeric] = mapped_column(Numeric(10, 2), nullable=False, default=0)
-    total: Mapped[Numeric] = mapped_column(Numeric(10, 2), nullable=False)
+    total: Mapped[Numeric] = mapped_column(Numeric(10, 2), nullable=False, default=0)
     is_final: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 

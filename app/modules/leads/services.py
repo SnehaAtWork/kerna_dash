@@ -6,6 +6,17 @@ from app.modules.leads.models import Lead
 from app.modules.leads.repositories import LeadRepository
 from app.shared.exceptions import NotFoundError, ValidationError
 
+LEAD_TRANSITIONS: dict[str, list[str]] = {
+    "NEW":           ["CONTACTED", "LOST"],
+    "CONTACTED":     ["QUALIFIED", "LOST"],
+    "QUALIFIED":     ["PROPOSAL_SENT", "WON", "LOST"],
+    "PROPOSAL_SENT": ["WON", "LOST"],
+    "WON":           [],
+    "LOST":          [],
+}
+
+QUALIFIED_STATES = {"QUALIFIED", "PROPOSAL_SENT", "WON"}
+
 
 class LeadService:
 
@@ -24,8 +35,19 @@ class LeadService:
         return lead
 
     def update_lead(self, db: Session, lead_id: uuid.UUID, data: dict) -> Lead:
+        data.pop("status", None)
         lead = self.get_lead(db, lead_id)
         return self.repository.update(db, lead, data)
+
+    def transition_lead(self, db: Session, lead_id: uuid.UUID, status: str, notes: str | None) -> Lead:
+        lead = self.get_lead(db, lead_id)
+        allowed = LEAD_TRANSITIONS.get(lead.status, [])
+        if status not in allowed:
+            raise ValidationError(
+                f"Cannot transition lead from {lead.status} to {status}. "
+                f"Allowed: {allowed or 'none (terminal state)'}"
+            )
+        return self.repository.transition(db, lead, status, notes)
 
     def assign_lead(self, db: Session, lead_id: uuid.UUID, user_id: uuid.UUID) -> Lead:
         if not user_id:

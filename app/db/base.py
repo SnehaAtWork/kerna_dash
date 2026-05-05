@@ -26,15 +26,13 @@ from app.modules.quotations.models import (
     QuotationLineItem,
 )
 
-# PROJECT MODULES
+# PROJECT MODULES + APPROVALS (Approval is defined in project_modules.models)
 from app.modules.project_modules.models import (
     ProjectModule,
     ModuleAssignment,
     ModuleVersion,
+    Approval,
 )
-
-# APPROVALS
-#from app.modules.approvals.models import Approval
 
 # INVOICES
 from app.modules.invoices.models import (

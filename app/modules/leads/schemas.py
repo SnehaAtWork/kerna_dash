@@ -16,7 +16,12 @@ class LeadUpdate(BaseModel):
     contact_name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
-    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class LeadTransition(BaseModel):
+    status: str
+    notes: Optional[str] = None
 
 
 class LeadAssign(BaseModel):
@@ -30,6 +35,7 @@ class LeadResponse(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     status: str
+    notes: Optional[str] = None
 
     class Config:
         from_attributes = True

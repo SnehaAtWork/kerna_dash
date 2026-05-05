@@ -1,2 +1,25 @@
 conda activate kerna_dash
 uvicorn app.main:app --reload
+
+-----to add new users------
+
+from app.core.database import SessionLocal
+from app.modules.users.models import User
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+db = SessionLocal()
+
+user = User(
+    name="Client",
+    email="client@kerna.in",
+    password_hash=pwd_context.hash("123456"),
+    active=True
+)
+
+db.add(user)
+db.commit()
+
+-----for frontend-------
+npm run dev
